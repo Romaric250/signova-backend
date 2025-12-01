@@ -1,0 +1,93 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  email         String    @unique
+  name          String
+  avatar        String?
+  hashedPassword String?
+  emailVerified Boolean   @default(false)
+  
+  preferences   Json?     // {language: 'ASL', avatarSpeed: 1.0, theme: 'light'}
+  
+  progress      Progress[]
+  favorites     Favorite[]
+  translations  Translation[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Sign {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  word        String
+  language    String   // 'ASL', 'BSL', 'ISL', 'LSF', 'GSL'
+  category    String   // 'Greetings', 'Numbers', 'Colors'
+  difficulty  String   // 'beginner', 'intermediate', 'advanced'
+  videoUrl    String   // UploadThing URL
+  thumbnail   String   // UploadThing URL
+  description String
+  
+  relatedSigns String[] @db.ObjectId
+  
+  favorites   Favorite[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([language, category])
+}
+
+model Progress {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id])
+  
+  signsLearned Int     @default(0)
+  practiceTime Int     @default(0) // minutes
+  streak      Int      @default(0)
+  lastActive  DateTime @default(now())
+  
+  achievements Json[]   // [{id: 'first_sign', unlockedAt: '2024-01-01'}]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([userId])
+}
+
+model Favorite {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  signId    String   @db.ObjectId
+  sign      Sign     @relation(fields: [signId], references: [id])
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, signId])
+}
+
+model Translation {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id])
+  
+  inputText   String
+  inputType   String   // 'speech', 'text'
+  language    String   // Target sign language
+  confidence  Float?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId, createdAt])
+}
+
