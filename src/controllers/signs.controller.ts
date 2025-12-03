@@ -45,7 +45,8 @@ export const getSigns = async (
     ]);
 
     res.json({
-      signs,
+      success: true,
+      data: signs,
       pagination: {
         page,
         limit,
@@ -80,7 +81,10 @@ export const getSignById = async (
       throw new NotFoundError("Sign not found");
     }
 
-    res.json(sign);
+    res.json({
+      success: true,
+      data: sign,
+    });
   } catch (error) {
     next(error);
   }
@@ -109,7 +113,10 @@ export const searchSigns = async (
       orderBy: { createdAt: "desc" },
     });
 
-    res.json({ signs });
+    res.json({
+      success: true,
+      data: signs,
+    });
   } catch (error) {
     next(error);
   }
@@ -157,7 +164,11 @@ export const addToFavorites = async (
 
     logger.info(`Sign added to favorites: ${signId} by user ${req.user.id}`);
 
-    res.status(201).json(favorite);
+    res.status(201).json({
+      success: true,
+      message: "Added to favorites",
+      data: favorite,
+    });
   } catch (error) {
     next(error);
   }
@@ -186,7 +197,10 @@ export const removeFromFavorites = async (
 
     logger.info(`Sign removed from favorites: ${id} by user ${req.user.id}`);
 
-    res.json({ message: "Removed from favorites" });
+    res.json({
+      success: true,
+      message: "Removed from favorites",
+    });
   } catch (error) {
     next(error);
   }
@@ -212,7 +226,10 @@ export const getFavorites = async (
       orderBy: { createdAt: "desc" },
     });
 
-    res.json({ favorites });
+    res.json({
+      success: true,
+      data: favorites.map((fav) => fav.sign),
+    });
   } catch (error) {
     next(error);
   }

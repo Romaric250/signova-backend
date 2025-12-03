@@ -31,7 +31,17 @@ export const getCurrentUser = async (
       throw new NotFoundError("User not found");
     }
 
-    res.json(user);
+    res.json({
+      success: true,
+      data: {
+        ...user,
+        learningStreak: 0, // Will be fetched from progress
+        signsLearned: 0, // Will be fetched from progress
+        practiceTime: 0, // Will be fetched from progress
+        level: 'beginner' as const,
+        joinedDate: user.createdAt.toISOString(),
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -61,13 +71,25 @@ export const updateProfile = async (
         name: true,
         avatar: true,
         preferences: true,
+        createdAt: true,
         updatedAt: true,
       },
     });
 
     logger.info(`User profile updated: ${req.user.id}`);
 
-    res.json(updatedUser);
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      data: {
+        ...updatedUser,
+        learningStreak: 0,
+        signsLearned: 0,
+        practiceTime: 0,
+        level: 'beginner' as const,
+        joinedDate: updatedUser.createdAt?.toISOString() || new Date().toISOString(),
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -101,7 +123,11 @@ export const updatePreferences = async (
 
     logger.info(`User preferences updated: ${req.user.id}`);
 
-    res.json(updatedUser);
+    res.json({
+      success: true,
+      message: "Preferences updated successfully",
+      data: updatedUser,
+    });
   } catch (error) {
     next(error);
   }

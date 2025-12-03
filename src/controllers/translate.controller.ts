@@ -36,7 +36,10 @@ export const transcribe = async (
     logger.info(`Audio transcribed for user ${req.user.id}`);
 
     res.json({
-      text: transcribedText,
+      success: true,
+      data: {
+        text: transcribedText,
+      },
     });
   } catch (error) {
     next(error);
@@ -73,7 +76,10 @@ export const textToSignTranslation = async (
 
     logger.info(`Text translated to signs for user ${req.user.id}`);
 
-    res.json(result);
+    res.json({
+      success: true,
+      data: result,
+    });
   } catch (error) {
     next(error);
   }
@@ -110,7 +116,8 @@ export const getTranslationHistory = async (
     ]);
 
     res.json({
-      translations,
+      success: true,
+      data: translations,
       pagination: {
         page,
         limit,

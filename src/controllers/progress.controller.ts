@@ -27,7 +27,10 @@ export const getProgress = async (
       });
     }
 
-    res.json(progress);
+    res.json({
+      success: true,
+      data: progress,
+    });
   } catch (error) {
     next(error);
   }
@@ -64,7 +67,11 @@ export const updateProgress = async (
 
     logger.info(`Progress updated for user ${req.user.id}`);
 
-    res.json(progress);
+    res.json({
+      success: true,
+      message: "Progress updated successfully",
+      data: progress,
+    });
   } catch (error) {
     next(error);
   }
@@ -116,7 +123,11 @@ export const updateStreak = async (
 
     logger.info(`Streak updated for user ${req.user.id}: ${newStreak}`);
 
-    res.json(updatedProgress);
+    res.json({
+      success: true,
+      message: "Streak updated successfully",
+      data: updatedProgress,
+    });
   } catch (error) {
     next(error);
   }
@@ -142,7 +153,10 @@ export const getAchievements = async (
 
     const achievements = progress.achievements || [];
 
-    res.json({ achievements });
+    res.json({
+      success: true,
+      data: achievements,
+    });
   } catch (error) {
     next(error);
   }
