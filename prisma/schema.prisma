@@ -6,21 +6,27 @@ generator client {
 
 datasource db {
   provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
   email         String    @unique
   name          String
-  avatar        String?
-  hashedPassword String?
+  image         String?   // Better Auth uses 'image' instead of 'avatar'
   emailVerified Boolean   @default(false)
   
-  preferences   Json?     // {language: 'ASL', avatarSpeed: 1.0, theme: 'light'}
+  // Better Auth relations
+  accounts      Account[]
+  sessions      Session[]
   
+  // App-specific relations
   progress      Progress[]
   favorites     Favorite[]
   translations  Translation[]
+  
+  // App-specific fields
+  preferences   Json?     // {language: 'ASL', avatarSpeed: 1.0, theme: 'light'}
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -89,5 +95,57 @@ model Translation {
   createdAt   DateTime @default(now())
   
   @@index([userId, createdAt])
+}
+
+// Better Auth required models
+model Account {
+  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId                String   @db.ObjectId
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  providerId            String   // 'credential', 'google', 'github', etc.
+  accountId             String   // Provider's user ID
+  password              String?  // Hashed password for credential provider
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  token     String   @unique
+  expiresAt DateTime
+  
+  ipAddress String?
+  userAgent String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  identifier String   // Email or phone number
+  value      String   // Verification code/token
+  expiresAt  DateTime
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  @@index([identifier, value])
 }
 

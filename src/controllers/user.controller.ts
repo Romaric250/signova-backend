@@ -20,7 +20,7 @@ export const getCurrentUser = async (
         id: true,
         email: true,
         name: true,
-        avatar: true,
+        image: true,
         preferences: true,
         createdAt: true,
         updatedAt: true,
@@ -35,6 +35,7 @@ export const getCurrentUser = async (
       success: true,
       data: {
         ...user,
+        avatar: user.image, // Map image to avatar for API compatibility
         learningStreak: 0, // Will be fetched from progress
         signsLearned: 0, // Will be fetched from progress
         practiceTime: 0, // Will be fetched from progress
@@ -63,13 +64,13 @@ export const updateProfile = async (
       where: { id: req.user.id },
       data: {
         ...(name && { name }),
-        ...(avatar && { avatar }),
+        ...(avatar && { image: avatar }), // Map avatar to image field
       },
       select: {
         id: true,
         email: true,
         name: true,
-        avatar: true,
+        image: true,
         preferences: true,
         createdAt: true,
         updatedAt: true,
@@ -83,6 +84,7 @@ export const updateProfile = async (
       message: "Profile updated successfully",
       data: {
         ...updatedUser,
+        avatar: updatedUser.image, // Map image to avatar for API compatibility
         learningStreak: 0,
         signsLearned: 0,
         practiceTime: 0,

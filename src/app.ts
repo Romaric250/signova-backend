@@ -13,11 +13,43 @@ import logger from "./utils/logger";
 export const createApp = (): Express => {
   const app = express();
 
-  // Middleware
-  app.use(cors({
-    origin: env.FRONTEND_URL,
+  // Middleware - CORS configuration
+  const corsOptions = {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      // Allow requests with no origin (like mobile apps or Postman)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // In development, allow common localhost origins
+      if (env.NODE_ENV === 'development') {
+        const allowedOrigins = [
+          'http://localhost:3000',
+          'http://localhost:8081', // Expo web
+          'http://localhost:19006', // Expo web alternative
+          'http://127.0.0.1:3000',
+          'http://127.0.0.1:8081',
+          env.FRONTEND_URL,
+        ];
+        
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+      }
+
+      // In production, only allow configured frontend URL
+      if (origin === env.FRONTEND_URL) {
+        return callback(null, true);
+      }
+
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
-  }));
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  };
+
+  app.use(cors(corsOptions));
 
   // Better Auth handler - must be before express.json() for Express v4
   // This handles Bearer token authentication automatically for mobile apps
