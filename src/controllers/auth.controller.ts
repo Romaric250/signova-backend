@@ -70,6 +70,10 @@ export const login = async (
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      throw new BadRequestError("Email and password are required");
+    }
+
     const result = await auth.api.signInEmail({
       body: {
         email,
@@ -114,8 +118,56 @@ export const login = async (
         refreshToken: bearerToken, // Better Auth uses same token, but mobile expects refreshToken
       },
     });
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    // Log the error for debugging
+    logger.error(`Login error: ${error.message || JSON.stringify(error)}`, {
+      error: error,
+      email: req.body.email,
+    });
+
+    // Handle Better Auth specific errors and convert to user-friendly messages
+    const errorMessage = error.message?.toLowerCase() || '';
+    const errorCode = error.code || error.statusCode || error.status;
+    
+    // Check for authentication/credential errors
+    if (errorCode === 401 || 
+        errorCode === 'UNAUTHORIZED' ||
+        errorMessage.includes("invalid") ||
+        errorMessage.includes("incorrect") ||
+        errorMessage.includes("wrong") ||
+        errorMessage.includes("credentials") ||
+        errorMessage.includes("password") ||
+        errorMessage.includes("authentication failed")) {
+      return next(new BadRequestError("Invalid email or password"));
+    }
+    
+    // Check for user not found errors
+    if (errorCode === 404 ||
+        errorMessage.includes("not found") ||
+        errorMessage.includes("does not exist") ||
+        errorMessage.includes("user not found")) {
+      return next(new BadRequestError("No account found with this email"));
+    }
+
+    // Check for email verification errors
+    if (errorMessage.includes("email") && errorMessage.includes("verify")) {
+      return next(new BadRequestError("Please verify your email before logging in"));
+    }
+
+    // For any other error from Better Auth, assume it's a credential issue
+    // This ensures we don't leak internal errors to users
+    if (error.message || error.toString().includes("auth") || error.toString().includes("login")) {
+      return next(new BadRequestError("Invalid email or password"));
+    }
+
+    // Only pass through if it's a known AppError
+    if (error instanceof BadRequestError || error.statusCode) {
+      return next(error);
+    }
+
+    // For unknown errors, return generic message instead of internal server error
+    logger.error(`Unexpected login error:`, error);
+    return next(new BadRequestError("Invalid email or password"));
   }
 };
 
