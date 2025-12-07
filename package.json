@@ -13,7 +13,7 @@
     "start:prod": "NODE_ENV=production node dist/server.js",
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && npm run build",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
