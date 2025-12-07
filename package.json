@@ -3,13 +3,22 @@
   "version": "1.0.0",
   "description": "SignNova Backend - Sign Language Learning Platform API",
   "main": "dist/server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "nodemon --exec ts-node src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "start:prod": "NODE_ENV=production node dist/server.js",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
+    "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "prisma:migrate": "prisma migrate dev",
+    "lint": "tsc --noEmit"
   },
   "keywords": [
     "sign-language",

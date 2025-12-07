@@ -187,12 +187,17 @@ signnova-backend/
 
 ## Scripts
 
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build for production
-- `npm start` - Start production server
-- `npm run prisma:generate` - Generate Prisma client
-- `npm run prisma:push` - Push schema to database
-- `npm run prisma:studio` - Open Prisma Studio
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server with hot reload |
+| `npm run build` | Build for production |
+| `npm start` | Start production server |
+| `npm run start:prod` | Start server with NODE_ENV=production |
+| `npm run lint` | Type check without emitting |
+| `npm run prisma:generate` | Generate Prisma client |
+| `npm run prisma:push` | Push schema to database |
+| `npm run prisma:migrate` | Run database migrations |
+| `npm run prisma:studio` | Open Prisma Studio |
 
 ## Database Schema
 
@@ -236,9 +241,30 @@ throw new NotFoundError("Resource not found");
 
 ## Deployment
 
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for comprehensive deployment instructions.
+
+### Quick Deploy Options
+
+| Platform | Guide |
+|----------|-------|
+| **Railway** | Connect GitHub → Add env vars → Auto-deploy |
+| **Render** | Create Web Service → Configure → Deploy |
+| **Heroku** | `heroku create && git push heroku main` |
+
 ### Environment Variables
 
-Ensure all environment variables are set in your production environment.
+Copy `env.example` to `.env` and configure:
+
+```bash
+cp env.example .env
+```
+
+Required variables:
+- `DATABASE_URL` - MongoDB connection string
+- `BETTER_AUTH_SECRET` - Auth secret (32+ chars)
+- `OPENAI_API_KEY` - For translations
+- `UPLOADTHING_SECRET` - For file uploads
+- `FRONTEND_URL` - CORS configuration
 
 ### Database
 
@@ -246,12 +272,12 @@ Ensure all environment variables are set in your production environment.
 - Configure IP whitelist
 - Enable connection string authentication
 
-### Security
+### Security Checklist
 
-- Set `requireEmailVerification: true` in Better Auth config
-- Enable rate limiting
-- Use HTTPS in production
-- Set secure cookie flags
+- [ ] Strong `BETTER_AUTH_SECRET` (32+ chars)
+- [ ] MongoDB Atlas IP whitelist
+- [ ] HTTPS enabled (auto on most platforms)
+- [ ] Correct `FRONTEND_URL` for CORS
 
 ### Monitoring
 
