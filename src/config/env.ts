@@ -18,8 +18,7 @@ export const env = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
   
   // UploadThing
-  UPLOADTHING_SECRET: process.env.UPLOADTHING_SECRET || "",
-  UPLOADTHING_APP_ID: process.env.UPLOADTHING_APP_ID || "",
+  UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN || "",
   
   // CORS
   FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",
@@ -30,7 +29,7 @@ const requiredEnvVars = [
   "DATABASE_URL",
   "BETTER_AUTH_SECRET",
   "OPENAI_API_KEY",
-  "UPLOADTHING_SECRET",
+  "UPLOADTHING_TOKEN",
 ];
 
 if (env.NODE_ENV === "production") {
