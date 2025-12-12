@@ -31,7 +31,12 @@ export const validateAudioFile = (
     "audio/mp3",
     "audio/wav",
     "audio/mpeg",
+    "audio/m4a", // iOS default recording format
+    "audio/aac", // Android sometimes uses this
+    "audio/3gpp", // Android older format
     "audio/ogg",
+    "audio/flac",
+    "audio/x-m4a", // Alternative MIME type for m4a
   ];
 
   if (!allowedMimeTypes.includes(req.file.mimetype)) {

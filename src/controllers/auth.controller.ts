@@ -204,6 +204,12 @@ export const getSession = async (
       });
     }
 
+    // Extract token from Authorization header for mobile apps
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.replace('Bearer ', '') || '';
+
+    logger.info(`Session retrieved for user: ${session.user.email}`);
+
     res.json({
       success: true,
       data: {
@@ -218,6 +224,8 @@ export const getSession = async (
           level: 'beginner' as const,
           joinedDate: session.user.createdAt?.toISOString() || new Date().toISOString(),
         },
+        token: token, // Return token so mobile app can store it
+        refreshToken: token, // Better Auth uses same token
         session: {
           id: session.session.id,
           expiresAt: session.session.expiresAt,
