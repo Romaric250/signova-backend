@@ -28,6 +28,7 @@ export const validateAudioFile = (
 
   const allowedMimeTypes = [
     "audio/webm",
+    "audio/webm;codecs=opus",
     "audio/mp3",
     "audio/wav",
     "audio/mpeg",

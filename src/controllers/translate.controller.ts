@@ -2,6 +2,7 @@
 import { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/database";
 import { transcribeAudio } from "../services/transcription.service";
+import { rearrangeText } from "../services/text-processing.service";
 import { textToSign } from "../services/translation.service";
 import { BadRequestError } from "../utils/errors";
 import logger from "../utils/logger";
@@ -20,16 +21,35 @@ export const transcribe = async (
       throw new BadRequestError("No audio file provided");
     }
 
+    const processAs = req.body?.processAs || "raw"; // 'raw' | 'rearranged'
     const audioBuffer = req.file.buffer;
-    const transcribedText = await transcribeAudio(audioBuffer);
+    const rawText = await transcribeAudio(audioBuffer);
 
-    // Save translation history
+    let text = rawText;
+    let processedText: string | null = null;
+
+    if (processAs === "rearranged" && rawText.trim()) {
+      processedText = await rearrangeText(rawText);
+      text = processedText;
+    }
+
+    // Save to Transcript model
+    const transcript = await prisma.transcript.create({
+      data: {
+        userId: req.user.id,
+        rawText,
+        processedText,
+        sourceType: "recording",
+      },
+    });
+
+    // Also save to translation history for backward compatibility
     await prisma.translation.create({
       data: {
         userId: req.user.id,
-        inputText: transcribedText,
+        inputText: text,
         inputType: "speech",
-        language: "ASL", // Default, can be made configurable
+        language: "ASL",
       },
     });
 
@@ -38,7 +58,9 @@ export const transcribe = async (
     res.json({
       success: true,
       data: {
-        text: transcribedText,
+        text,
+        rawText,
+        transcriptId: transcript.id,
       },
     });
   } catch (error) {

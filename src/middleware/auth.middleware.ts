@@ -11,6 +11,8 @@ declare global {
         email: string;
         name: string;
         avatar?: string;
+        isAdmin?: boolean;
+        subscriptionPlan?: string;
       };
     }
   }

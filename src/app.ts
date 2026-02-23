@@ -49,7 +49,11 @@ export const createApp = (): Express => {
 
   // 404 handler
   app.use((req, res) => {
-    res.status(404).json({ error: "Route not found" });
+    res.status(404).json({
+      success: false,
+      error: "Not found",
+      message: "The requested resource could not be found",
+    });
   });
 
   logger.info("Express app initialized");

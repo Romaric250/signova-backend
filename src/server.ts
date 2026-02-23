@@ -2,6 +2,7 @@
 import http from "http";
 import { createApp } from "./app";
 import { initializeSocket } from "./websocket/socket";
+import { setIO } from "./websocket/emitter";
 import { env } from "./config/env";
 import logger from "./utils/logger";
 import { prisma } from "./config/database";
@@ -9,8 +10,8 @@ import { prisma } from "./config/database";
 const app = createApp();
 const httpServer = http.createServer(app);
 
-// Initialize Socket.io
 const io = initializeSocket(httpServer);
+setIO(io);
 
 // Graceful shutdown
 const shutdown = async () => {

@@ -4,6 +4,8 @@ import multer from "multer";
 import {
   uploadAvatar,
   uploadSignVideo,
+  uploadCourseThumbnail,
+  uploadLessonVideo,
 } from "../controllers/upload.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 import { validateFileUpload } from "../middleware/upload.middleware";
@@ -32,6 +34,18 @@ router.post(
   upload.single("video"),
   validateFileUpload,
   uploadSignVideo
+);
+router.post(
+  "/course-thumbnail",
+  upload.single("image"),
+  validateFileUpload,
+  uploadCourseThumbnail
+);
+router.post(
+  "/lesson-video",
+  upload.single("video"),
+  validateFileUpload,
+  uploadLessonVideo
 );
 
 export default router;

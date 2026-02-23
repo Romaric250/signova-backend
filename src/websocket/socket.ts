@@ -2,6 +2,7 @@
 import { Server as HTTPServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { setupTranscribeHandler } from "./handlers/transcribe.handler";
+import { setupGroupHandler } from "./handlers/group.handler";
 import { auth } from "../config/auth";
 import logger from "../utils/logger";
 import { env } from "../config/env";
@@ -15,18 +16,20 @@ export const initializeSocket = (httpServer: HTTPServer): SocketIOServer => {
     },
   });
 
-  // Authentication middleware for Socket.io
+  // Authentication middleware for Socket.io (supports Bearer token from auth object)
   io.use(async (socket, next) => {
     try {
-      const session = await auth.api.getSession({
-        headers: socket.handshake.headers,
-      });
+      const token = (socket.handshake.auth as any)?.token;
+      const headers: Record<string, string> = { ...socket.handshake.headers } as any;
+      if (token) {
+        headers.authorization = `Bearer ${token}`;
+      }
+      const session = await auth.api.getSession({ headers });
 
       if (!session || !session.user) {
         return next(new Error("Unauthorized"));
       }
 
-      // Attach user info to socket
       (socket as any).user = session.user;
       next();
     } catch (error) {
@@ -38,8 +41,8 @@ export const initializeSocket = (httpServer: HTTPServer): SocketIOServer => {
     const user = (socket as any).user;
     logger.info(`Client connected: ${socket.id} (User: ${user?.email})`);
 
-    // Setup transcription handler
     setupTranscribeHandler(io, socket);
+    setupGroupHandler(io, socket);
   });
 
   return io;

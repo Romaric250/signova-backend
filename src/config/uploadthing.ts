@@ -15,6 +15,18 @@ export const uploadRouter = {
   }).onUploadComplete(async ({ file }) => {
     return { url: file.url };
   }),
+
+  courseThumbnail: f({
+    image: { maxFileSize: "4MB", maxFileCount: 1 },
+  }).onUploadComplete(async ({ file }) => {
+    return { url: file.url };
+  }),
+
+  lessonVideo: f({
+    video: { maxFileSize: "64MB", maxFileCount: 1 },
+  }).onUploadComplete(async ({ file }) => {
+    return { url: file.url };
+  }),
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof uploadRouter;

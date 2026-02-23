@@ -16,6 +16,10 @@ model User {
   image         String?   // Better Auth uses 'image' instead of 'avatar'
   emailVerified Boolean   @default(false)
   
+  // Subscription & admin
+  subscriptionPlan String @default("free")
+  isAdmin          Boolean @default(false)
+  
   // Better Auth relations
   accounts      Account[]
   sessions      Session[]
@@ -24,6 +28,11 @@ model User {
   progress      Progress[]
   favorites     Favorite[]
   translations  Translation[]
+  notes         Note[]
+  transcripts   Transcript[]
+  createdGroups TranscriptionGroup[]
+  groupMembers  GroupMember[]
+  groupMessages GroupMessage[]
   
   // App-specific fields
   preferences   Json?     // {language: 'ASL', avatarSpeed: 1.0, theme: 'light'}
@@ -95,6 +104,113 @@ model Translation {
   createdAt   DateTime @default(now())
   
   @@index([userId, createdAt])
+}
+
+model Note {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
+  user            User     @relation(fields: [userId], references: [id])
+  
+  title           String
+  content         String   // typed text or final display content
+  rawContent      String?  // from recording before processing
+  processedContent String? // AI rearranged content
+  sourceType      String   // 'typed' | 'recorded'
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId, createdAt])
+}
+
+model Transcript {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @db.ObjectId
+  user          User     @relation(fields: [userId], references: [id])
+  
+  rawText       String
+  processedText String?
+  sourceType    String   @default("recording")
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([userId, createdAt])
+}
+
+model TranscriptionGroup {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  createdById String   @db.ObjectId
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  inviteCode  String   @unique
+  
+  members     GroupMember[]
+  messages    GroupMessage[]
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([createdById])
+}
+
+model GroupMember {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  groupId   String   @db.ObjectId
+  group     TranscriptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   // 'admin' | 'member'
+  
+  joinedAt  DateTime @default(now())
+  
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+}
+
+model GroupMessage {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  groupId     String   @db.ObjectId
+  group       TranscriptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId      String   @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id])
+  
+  content     String   // text content
+  rawContent  String?  // if from recording
+  type        String   // 'text' | 'voice'
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([groupId, createdAt])
+}
+
+model Course {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  description  String?
+  thumbnailUrl String?
+  order        Int      @default(0)
+  isPublished  Boolean  @default(false)
+  
+  lessons      Lesson[]
+  
+  createdAt    DateTime @default(now())
+  
+  @@index([isPublished, order])
+}
+
+model Lesson {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  courseId  String   @db.ObjectId
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  title     String
+  content   String?
+  videoUrl  String?
+  order     Int      @default(0)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([courseId, order])
 }
 
 // Better Auth required models
