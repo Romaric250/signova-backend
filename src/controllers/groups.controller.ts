@@ -155,6 +155,24 @@ export const getMyGroups = async (
   }
 };
 
+export const getGroupByInviteCode = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { code } = req.params;
+    const group = await prisma.transcriptionGroup.findUnique({
+      where: { inviteCode: (code || "").trim().toUpperCase() },
+      select: { id: true, name: true, inviteCode: true },
+    });
+    if (!group) throw new NotFoundError("Group not found");
+    res.json({ success: true, data: group });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getGroupById = async (
   req: Request,
   res: Response,
@@ -326,6 +344,41 @@ export const sendVoiceMessage = async (
       success: true,
       data: message,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateGroup = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) throw new BadRequestError("User not found");
+    const { id } = req.params;
+    const { name } = req.body;
+
+    const membership = await prisma.groupMember.findFirst({
+      where: { groupId: id, userId: req.user.id },
+    });
+    if (!membership) throw new ForbiddenError("Not a member of this group");
+    if (membership.role !== "admin") {
+      throw new ForbiddenError("Only admins can edit the group");
+    }
+    if (!name || typeof name !== "string" || !name.trim()) {
+      throw new BadRequestError("Group name is required");
+    }
+
+    const group = await prisma.transcriptionGroup.update({
+      where: { id },
+      data: { name: name.trim() },
+      include: {
+        createdBy: { select: { id: true, name: true, email: true } },
+        members: { include: { user: { select: { id: true, name: true, email: true } } } },
+      },
+    });
+    res.json({ success: true, data: group });
   } catch (error) {
     next(error);
   }
