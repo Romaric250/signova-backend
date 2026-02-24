@@ -167,6 +167,65 @@ export const getNoteById = async (
   }
 };
 
+export const addRecordingToNote = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) throw new BadRequestError("User not found");
+    if (!req.file) throw new BadRequestError("No audio file provided");
+
+    const { id } = req.params;
+    const { processAs } = req.body;
+
+    const existing = await prisma.note.findFirst({
+      where: { id, userId: req.user.id },
+    });
+
+    if (!existing) throw new NotFoundError("Note not found");
+
+    const rawText = await transcribeAudio(req.file.buffer);
+    const processMode = processAs === "rearranged";
+
+    let content = rawText;
+    let processedContent: string | null = null;
+
+    if (processMode && rawText.trim()) {
+      processedContent = await rearrangeText(rawText);
+      content = processedContent;
+    }
+
+    const separator = existing.content.trim() ? "\n\n" : "";
+    const newContent = existing.content + separator + content;
+    const newRawContent = existing.rawContent
+      ? existing.rawContent + "\n" + rawText
+      : rawText;
+    const newProcessedContent = processedContent
+      ? (existing.processedContent || "") + (existing.processedContent ? "\n" : "") + processedContent
+      : existing.processedContent;
+
+    const note = await prisma.note.update({
+      where: { id },
+      data: {
+        content: newContent,
+        rawContent: newRawContent,
+        processedContent: newProcessedContent,
+        sourceType: "recorded",
+      },
+    });
+
+    logger.info(`Recording added to note ${id} by user ${req.user.id}`);
+
+    res.json({
+      success: true,
+      data: note,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const updateNote = async (
   req: Request,
   res: Response,

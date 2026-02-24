@@ -1,6 +1,7 @@
 // src/controllers/auth.controller.ts
 import { Request, Response, NextFunction } from "express";
 import { auth } from "../config/auth";
+import { prisma } from "../config/database";
 import { BadRequestError, ConflictError } from "../utils/errors";
 import logger from "../utils/logger";
 
@@ -44,6 +45,7 @@ export const signup = async (
           email: result.user.email,
           name: result.user.name,
           avatar: result.user.image || undefined,
+          isAdmin: false,
           learningStreak: 0,
           signsLearned: 0,
           practiceTime: 0,
@@ -95,8 +97,10 @@ export const login = async (
 
     logger.info(`User logged in: ${email}`);
 
-    // Get session to include session details
-    const session = await auth.api.getSession({ headers: req.headers });
+    const dbUser = await prisma.user.findUnique({
+      where: { id: result.user.id },
+      select: { isAdmin: true },
+    });
 
     // Return format expected by mobile app: { data: {...}, success: true }
     res.json({
@@ -108,6 +112,7 @@ export const login = async (
           email: result.user.email,
           name: result.user.name,
           avatar: result.user.image || undefined,
+          isAdmin: dbUser?.isAdmin ?? false,
           learningStreak: 0, // Will be fetched from progress API
           signsLearned: 0, // Will be fetched from progress API
           practiceTime: 0, // Will be fetched from progress API
@@ -210,6 +215,12 @@ export const getSession = async (
 
     logger.info(`Session retrieved for user: ${session.user.email}`);
 
+    // Fetch isAdmin from DB (Better Auth user may not include it)
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { isAdmin: true },
+    });
+
     res.json({
       success: true,
       data: {
@@ -218,6 +229,7 @@ export const getSession = async (
           email: session.user.email,
           name: session.user.name,
           avatar: session.user.image || undefined,
+          isAdmin: dbUser?.isAdmin ?? false,
           learningStreak: 0,
           signsLearned: 0,
           practiceTime: 0,

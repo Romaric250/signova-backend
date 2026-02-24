@@ -4,6 +4,7 @@ import multer from "multer";
 import {
   createNote,
   createNoteFromRecording,
+  addRecordingToNote,
   getNotes,
   getNoteById,
   updateNote,
@@ -24,6 +25,7 @@ router.post("/", createNote);
 router.post("/from-recording", upload.single("audio"), validateAudioFile, createNoteFromRecording);
 router.get("/", getNotes);
 router.get("/:id", getNoteById);
+router.post("/:id/from-recording", upload.single("audio"), validateAudioFile, addRecordingToNote);
 router.patch("/:id", updateNote);
 router.delete("/:id", deleteNote);
 
