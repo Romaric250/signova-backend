@@ -22,6 +22,9 @@ export const env = {
   
   // CORS
   FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",
+
+  // Keep-alive cron (pings health endpoint to prevent Render hibernation)
+  SERVER_URL: process.env.SERVER_URL || "https://signova-backend.onrender.com/api",
 };
 
 // Validate required environment variables

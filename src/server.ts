@@ -3,6 +3,7 @@ import http from "http";
 import { createApp } from "./app";
 import { initializeSocket } from "./websocket/socket";
 import { setIO } from "./websocket/emitter";
+import { startKeepAliveCron } from "./cron/keepAlive";
 import { env } from "./config/env";
 import logger from "./utils/logger";
 import { prisma } from "./config/database";
@@ -41,6 +42,7 @@ httpServer.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
   logger.info(`Environment: ${env.NODE_ENV}`);
   logger.info(`Frontend URL: ${env.FRONTEND_URL}`);
+  startKeepAliveCron();
 });
 
 export { io };
