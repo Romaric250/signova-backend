@@ -64,3 +64,30 @@ export const getTranscriptById = async (
     next(error);
   }
 };
+
+export const deleteTranscript = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) throw new BadRequestError("User not found");
+
+    const { id } = req.params;
+
+    const transcript = await prisma.transcript.findFirst({
+      where: { id, userId: req.user.id },
+    });
+
+    if (!transcript) throw new NotFoundError("Transcript not found");
+
+    await prisma.transcript.delete({ where: { id } });
+
+    res.json({
+      success: true,
+      message: "Transcript deleted",
+    });
+  } catch (error) {
+    next(error);
+  }
+};

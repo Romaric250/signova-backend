@@ -4,16 +4,19 @@ import {
   getAllUsers,
   updateUserSubscription,
   setUserAdmin,
+  getAdminStats,
+  getAdminChartData,
   createSign,
   updateSign,
   deleteSign,
+  getAllCourses,
   createCourse,
   updateCourse,
   deleteCourse,
   createLesson,
   updateLesson,
   deleteLesson,
-  getAdminStats,
+  getAllFeedback,
 } from "../controllers/admin.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 import { requireAdmin } from "../middleware/admin.middleware";
@@ -24,10 +27,13 @@ router.use(requireAuth);
 router.use(requireAdmin);
 
 router.get("/stats", getAdminStats);
+router.get("/chart-data", getAdminChartData);
+router.get("/feedback", getAllFeedback);
 router.get("/users", getAllUsers);
 router.patch("/users/:id/subscription", updateUserSubscription);
 router.patch("/users/:id/admin", setUserAdmin);
 
+router.get("/courses", getAllCourses);
 router.post("/signs", createSign);
 router.patch("/signs/:id", updateSign);
 router.delete("/signs/:id", deleteSign);

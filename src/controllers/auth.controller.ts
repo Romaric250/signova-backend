@@ -1,9 +1,15 @@
 // src/controllers/auth.controller.ts
 import { Request, Response, NextFunction } from "express";
 import { auth } from "../config/auth";
+import { env } from "../config/env";
 import { prisma } from "../config/database";
 import { BadRequestError, ConflictError } from "../utils/errors";
+import { sendOTPEmail } from "../services/email.service";
 import logger from "../utils/logger";
+
+function generateOTP(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 export const signup = async (
   req: Request,
@@ -26,19 +32,30 @@ export const signup = async (
       throw new BadRequestError("Signup failed");
     }
 
-    // For mobile apps: return Bearer token if auto-signin occurred
     const bearerToken = result.token || null;
-    
     if (bearerToken) {
       res.setHeader("set-auth-token", bearerToken);
     }
 
-    logger.info(`New user signed up: ${email}`);
+    const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Return format expected by mobile app: { data: {...}, success: true }
+    await prisma.emailVerificationOtp.create({
+      data: {
+        userId: result.user.id,
+        email: result.user.email,
+        code: otp,
+        expiresAt,
+      },
+    });
+
+    await sendOTPEmail(result.user.email, otp);
+
+    logger.info(`New user signed up: ${email}, OTP sent`);
+
     res.status(201).json({
       success: true,
-      message: "User created successfully",
+      message: "Account created. Please verify your email with the code sent to you.",
       data: {
         user: {
           id: result.user.id,
@@ -46,14 +63,15 @@ export const signup = async (
           name: result.user.name,
           avatar: result.user.image || undefined,
           isAdmin: false,
+          emailVerified: false,
           learningStreak: 0,
           signsLearned: 0,
           practiceTime: 0,
-          level: 'beginner' as const,
+          level: "beginner" as const,
           joinedDate: new Date().toISOString(),
         },
-        token: bearerToken || '',
-        refreshToken: bearerToken || '', // Better Auth uses same token, but mobile expects refreshToken
+        token: bearerToken || "",
+        refreshToken: bearerToken || "",
       },
     });
   } catch (error: any) {
@@ -99,7 +117,7 @@ export const login = async (
 
     const dbUser = await prisma.user.findUnique({
       where: { id: result.user.id },
-      select: { isAdmin: true },
+      select: { isAdmin: true, emailVerified: true },
     });
 
     // Return format expected by mobile app: { data: {...}, success: true }
@@ -113,6 +131,7 @@ export const login = async (
           name: result.user.name,
           avatar: result.user.image || undefined,
           isAdmin: dbUser?.isAdmin ?? false,
+          emailVerified: dbUser?.emailVerified ?? false,
           learningStreak: 0, // Will be fetched from progress API
           signsLearned: 0, // Will be fetched from progress API
           practiceTime: 0, // Will be fetched from progress API
@@ -215,10 +234,10 @@ export const getSession = async (
 
     logger.info(`Session retrieved for user: ${session.user.email}`);
 
-    // Fetch isAdmin from DB (Better Auth user may not include it)
+    // Fetch isAdmin and emailVerified from DB (Better Auth user may not include it)
     const dbUser = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { isAdmin: true },
+      select: { isAdmin: true, emailVerified: true },
     });
 
     res.json({
@@ -230,6 +249,7 @@ export const getSession = async (
           name: session.user.name,
           avatar: session.user.image || undefined,
           isAdmin: dbUser?.isAdmin ?? false,
+          emailVerified: dbUser?.emailVerified ?? false,
           learningStreak: 0,
           signsLearned: 0,
           practiceTime: 0,
@@ -247,6 +267,174 @@ export const getSession = async (
   } catch (error) {
     next(error);
   }
+};
+
+export const requestPasswordReset = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== "string") {
+      throw new BadRequestError("Email is required");
+    }
+
+    const redirectTo = `${env.FRONTEND_URL}/reset-password`;
+    await auth.api.requestPasswordReset({
+      body: { email: email.trim(), redirectTo },
+      headers: req.headers,
+    });
+
+    logger.info(`Password reset requested for: ${email}`);
+
+    res.json({
+      success: true,
+      message: "If an account exists with this email, you will receive a password reset link",
+    });
+  } catch (error: any) {
+    logger.error(`Password reset error: ${error.message}`);
+    res.json({
+      success: true,
+      message: "If an account exists with this email, you will receive a password reset link",
+    });
+  }
+};
+
+export const resetPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      throw new BadRequestError("Token and new password are required");
+    }
+    if (newPassword.length < 8) {
+      throw new BadRequestError("Password must be at least 8 characters");
+    }
+
+    await auth.api.resetPassword({
+      body: { token, newPassword },
+      headers: req.headers,
+    });
+
+    logger.info("Password reset successful");
+
+    res.json({
+      success: true,
+      message: "Password reset successful",
+    });
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const verifyOtp = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (!session?.user) {
+      throw new BadRequestError("You must be logged in to verify");
+    }
+
+    const { code } = req.body;
+    if (!code || typeof code !== "string" || !/^\d{6}$/.test(code.trim())) {
+      throw new BadRequestError("Please enter a valid 6-digit code");
+    }
+
+    const otpRecord = await prisma.emailVerificationOtp.findFirst({
+      where: {
+        userId: session.user.id,
+        code: code.trim(),
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!otpRecord) {
+      throw new BadRequestError("Invalid or expired code. Please request a new one.");
+    }
+
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { emailVerified: true },
+    });
+
+    await prisma.emailVerificationOtp.deleteMany({
+      where: { userId: session.user.id },
+    });
+
+    logger.info(`Email verified for user: ${session.user.email}`);
+
+    res.json({
+      success: true,
+      message: "Email verified successfully",
+      data: { emailVerified: true },
+    });
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const resendVerificationCode = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (!session?.user) {
+      throw new BadRequestError("You must be logged in to resend verification code");
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { emailVerified: true },
+    });
+    if (dbUser?.emailVerified) {
+      throw new BadRequestError("Email is already verified");
+    }
+
+    const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await prisma.emailVerificationOtp.deleteMany({
+      where: { userId: session.user.id },
+    });
+
+    await prisma.emailVerificationOtp.create({
+      data: {
+        userId: session.user.id,
+        email: session.user.email,
+        code: otp,
+        expiresAt,
+      },
+    });
+
+    await sendOTPEmail(session.user.email, otp);
+
+    logger.info(`Verification OTP resent to: ${session.user.email}`);
+
+    res.json({
+      success: true,
+      message: "Verification code sent. Check your inbox.",
+    });
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const sendVerificationEmail = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  return resendVerificationCode(req, res, next);
 };
 
 export const refreshToken = async (

@@ -5,6 +5,7 @@ import { bearer } from "better-auth/plugins";
 import { prisma } from "./database";
 import { env } from "./env";
 import { ObjectId } from "mongodb";
+import { sendPasswordResetEmail, sendVerificationEmail } from "../services/email.service";
 
 // Generate valid MongoDB ObjectID for Better Auth
 const generateObjectId = () => {
@@ -17,7 +18,15 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false, // Set true for production
+    requireEmailVerification: false,
+    sendResetPassword: async ({ user, token }) => {
+      void sendPasswordResetEmail(user.email, token || "");
+    },
+  },
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url }) => {
+      void sendVerificationEmail(user.email, url);
+    },
   },
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days

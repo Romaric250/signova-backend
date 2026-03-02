@@ -7,9 +7,11 @@ import translateRoutes from "./translate.routes";
 import transcriptsRoutes from "./transcripts.routes";
 import notesRoutes from "./notes.routes";
 import groupsRoutes from "./groups.routes";
+import chatsRoutes from "./chats.routes";
 import learningRoutes from "./learning.routes";
 import adminRoutes from "./admin.routes";
 import progressRoutes from "./progress.routes";
+import feedbackRoutes from "./feedback.routes";
 import uploadRoutes from "./upload.routes";
 
 const router = Router();
@@ -21,9 +23,11 @@ router.use("/translate", translateRoutes);
 router.use("/transcripts", transcriptsRoutes);
 router.use("/notes", notesRoutes);
 router.use("/groups", groupsRoutes);
+router.use("/chats", chatsRoutes);
 router.use("/learning", learningRoutes);
 router.use("/admin", adminRoutes);
 router.use("/progress", progressRoutes);
+router.use("/feedback", feedbackRoutes);
 router.use("/upload", uploadRoutes);
 
 // Health check endpoint

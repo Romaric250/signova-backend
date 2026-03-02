@@ -3,6 +3,7 @@ import { Server as HTTPServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { setupTranscribeHandler } from "./handlers/transcribe.handler";
 import { setupGroupHandler } from "./handlers/group.handler";
+import { setupChatHandler } from "./handlers/chat.handler";
 import { auth } from "../config/auth";
 import logger from "../utils/logger";
 import { env } from "../config/env";
@@ -43,6 +44,7 @@ export const initializeSocket = (httpServer: HTTPServer): SocketIOServer => {
 
     setupTranscribeHandler(io, socket);
     setupGroupHandler(io, socket);
+    setupChatHandler(io, socket);
   });
 
   return io;

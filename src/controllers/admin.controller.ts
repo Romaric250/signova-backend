@@ -199,6 +199,23 @@ export const deleteSign = async (
   }
 };
 
+// Courses - Admin list all (including unpublished)
+export const getAllCourses = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const courses = await prisma.course.findMany({
+      include: { lessons: { orderBy: { order: "asc" } } },
+      orderBy: { order: "asc" },
+    });
+    res.json({ success: true, data: courses });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Courses - Admin CRUD
 export const createCourse = async (
   req: Request,
@@ -356,6 +373,48 @@ export const deleteLesson = async (
   }
 };
 
+// Feedback - Admin list all
+export const getAllFeedback = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const skip = (page - 1) * limit;
+    const type = req.query.type as string | undefined;
+
+    const where = type ? { type } : {};
+
+    const [feedbacks, total] = await Promise.all([
+      prisma.feedback.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.feedback.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: feedbacks,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Admin dashboard stats
 export const getAdminStats = async (
   req: Request,
@@ -363,12 +422,31 @@ export const getAdminStats = async (
   next: NextFunction
 ) => {
   try {
-    const [usersCount, premiumCount, signsCount, coursesCount] = await Promise.all([
+    const [
+      usersCount,
+      premiumCount,
+      signsCount,
+      coursesCount,
+      feedbackCount,
+      transcriptionsCount,
+      groupsCount,
+      chatMessagesCount,
+      groupMessagesCount,
+      notesCount,
+    ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { subscriptionPlan: "premium" } }),
       prisma.sign.count(),
       prisma.course.count(),
+      prisma.feedback.count(),
+      prisma.transcript.count(),
+      prisma.transcriptionGroup.count(),
+      prisma.chatMessage.count(),
+      prisma.groupMessage.count(),
+      prisma.note.count(),
     ]);
+
+    const totalMessagesCount = chatMessagesCount + groupMessagesCount;
 
     res.json({
       success: true,
@@ -377,6 +455,69 @@ export const getAdminStats = async (
         premiumCount,
         signsCount,
         coursesCount,
+        feedbackCount,
+        transcriptionsCount,
+        groupsCount,
+        chatMessagesCount,
+        groupMessagesCount,
+        totalMessagesCount,
+        notesCount,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Chart data for admin dashboard
+export const getAdminChartData = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const days = parseInt(req.query.days as string) || 30;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    startDate.setHours(0, 0, 0, 0);
+
+    const users = await prisma.user.findMany({
+      where: { createdAt: { gte: startDate } },
+      select: { createdAt: true },
+    });
+
+    const transcripts = await prisma.transcript.findMany({
+      where: { createdAt: { gte: startDate } },
+      select: { createdAt: true },
+    });
+
+    const dateCounts: Record<string, { users: number; transcriptions: number }> = {};
+    for (let i = 0; i < days; i++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      const key = d.toISOString().split("T")[0];
+      dateCounts[key] = { users: 0, transcriptions: 0 };
+    }
+
+    users.forEach((u) => {
+      const key = new Date(u.createdAt).toISOString().split("T")[0];
+      if (dateCounts[key]) dateCounts[key].users++;
+    });
+    transcripts.forEach((t) => {
+      const key = new Date(t.createdAt).toISOString().split("T")[0];
+      if (dateCounts[key]) dateCounts[key].transcriptions++;
+    });
+
+    const labels = Object.keys(dateCounts).sort();
+    const usersData = labels.map((l) => dateCounts[l].users);
+    const transcriptionsData = labels.map((l) => dateCounts[l].transcriptions);
+
+    res.json({
+      success: true,
+      data: {
+        labels,
+        usersData,
+        transcriptionsData,
       },
     });
   } catch (error) {

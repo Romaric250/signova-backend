@@ -7,6 +7,7 @@ import { BadRequestError, ForbiddenError, NotFoundError } from "../utils/errors"
 import { randomBytes } from "crypto";
 import logger from "../utils/logger";
 import { emitGroupMessage } from "../websocket/emitter";
+import { sendGroupRemovedEmail, sendGroupJoinEmail } from "../services/email.service";
 
 function generateInviteCode(): string {
   return randomBytes(4).toString("hex").toUpperCase();
@@ -108,6 +109,23 @@ export const joinGroup = async (
       },
     });
 
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { name: true, email: true },
+    });
+    const creator = await prisma.user.findUnique({
+      where: { id: group.createdById },
+      select: { name: true },
+    });
+    if (currentUser?.email) {
+      sendGroupJoinEmail(
+        currentUser.email,
+        currentUser.name,
+        group.name,
+        creator?.name || ""
+      ).catch((e) => logger.error("Failed to send group join email:", e));
+    }
+
     const updated = await prisma.transcriptionGroup.findUnique({
       where: { id: group.id },
       include: {
@@ -140,15 +158,31 @@ export const getMyGroups = async (
           include: {
             createdBy: { select: { id: true, name: true, email: true } },
             members: { include: { user: { select: { id: true, name: true, email: true } } } },
+            _count: { select: { messages: true } },
           },
         },
       },
       orderBy: { joinedAt: "desc" },
     });
 
+    const result = await Promise.all(
+      memberships.map(async (m) => {
+        const totalCount = m.group._count.messages;
+        const unreadCount = await prisma.groupMessage.count({
+          where: {
+            groupId: m.group.id,
+            userId: { not: req.user!.id },
+            ...(m.lastReadAt ? { createdAt: { gt: m.lastReadAt } } : {}),
+          },
+        });
+        const { _count, ...group } = m.group;
+        return { ...group, totalCount, unreadCount };
+      })
+    );
+
     res.json({
       success: true,
-      data: memberships.map((m) => m.group),
+      data: result,
     });
   } catch (error) {
     next(error);
@@ -239,6 +273,11 @@ export const getGroupMessages = async (
       }),
       prisma.groupMessage.count({ where: { groupId: id } }),
     ]);
+
+    await prisma.groupMember.update({
+      where: { id: membership.id },
+      data: { lastReadAt: new Date() },
+    });
 
     res.json({
       success: true,
@@ -344,6 +383,83 @@ export const sendVoiceMessage = async (
       success: true,
       data: message,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateMessage = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) throw new BadRequestError("User not found");
+
+    const { id, messageId } = req.params;
+    const { content } = req.body;
+
+    const membership = await prisma.groupMember.findFirst({
+      where: { groupId: id, userId: req.user.id },
+    });
+    if (!membership) throw new ForbiddenError("Not a member of this group");
+
+    const message = await prisma.groupMessage.findFirst({
+      where: { id: messageId, groupId: id },
+    });
+    if (!message) throw new NotFoundError("Message not found");
+    if (message.userId !== req.user.id) {
+      throw new ForbiddenError("You can only edit your own messages");
+    }
+
+    if (!content || typeof content !== "string" || !content.trim()) {
+      throw new BadRequestError("Message content is required");
+    }
+
+    const updated = await prisma.groupMessage.update({
+      where: { id: messageId },
+      data: { content: content.trim() },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    emitGroupMessage(id, { ...updated, _action: "update" });
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteMessage = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) throw new BadRequestError("User not found");
+
+    const { id, messageId } = req.params;
+
+    const membership = await prisma.groupMember.findFirst({
+      where: { groupId: id, userId: req.user.id },
+    });
+    if (!membership) throw new ForbiddenError("Not a member of this group");
+
+    const message = await prisma.groupMessage.findFirst({
+      where: { id: messageId, groupId: id },
+    });
+    if (!message) throw new NotFoundError("Message not found");
+    if (message.userId !== req.user.id && membership.role !== "admin") {
+      throw new ForbiddenError("You can only delete your own messages, or be admin to delete any");
+    }
+
+    await prisma.groupMessage.delete({ where: { id: messageId } });
+
+    emitGroupMessage(id, { id: messageId, _action: "delete" });
+
+    res.json({ success: true, message: "Message deleted" });
   } catch (error) {
     next(error);
   }
@@ -469,6 +585,65 @@ export const leaveGroup = async (
     res.json({
       success: true,
       message: "Left group",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const removeMember = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) throw new BadRequestError("User not found");
+
+    const { id, userId: targetUserId } = req.params;
+
+    const adminMembership = await prisma.groupMember.findFirst({
+      where: { groupId: id, userId: req.user.id },
+    });
+    if (!adminMembership) throw new ForbiddenError("Not a member of this group");
+    if (adminMembership.role !== "admin") {
+      throw new ForbiddenError("Only admins can remove members");
+    }
+
+    const targetMembership = await prisma.groupMember.findFirst({
+      where: { groupId: id, userId: targetUserId },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    });
+    if (!targetMembership) throw new NotFoundError("Member not found");
+
+    if (targetMembership.userId === req.user.id) {
+      throw new BadRequestError("Use leave group to remove yourself");
+    }
+
+    const group = await prisma.transcriptionGroup.findUnique({
+      where: { id },
+      select: { name: true },
+    });
+    if (!group) throw new NotFoundError("Group not found");
+
+    await prisma.groupMember.delete({
+      where: {
+        groupId_userId: { groupId: id, userId: targetUserId },
+      },
+    });
+
+    if (targetMembership.user.email) {
+      sendGroupRemovedEmail(
+        targetMembership.user.email,
+        targetMembership.user.name,
+        group.name
+      ).catch((e) => logger.error("Failed to send group removed email:", e));
+    }
+
+    logger.info(`User ${targetUserId} removed from group ${id} by ${req.user.id}`);
+
+    res.json({
+      success: true,
+      message: "Member removed",
     });
   } catch (error) {
     next(error);

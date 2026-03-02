@@ -25,6 +25,10 @@ export const env = {
 
   // Keep-alive cron (pings health endpoint to prevent Render hibernation)
   SERVER_URL: process.env.SERVER_URL || "https://signova-backend.onrender.com/api",
+
+  // Resend (email)
+  RESEND_API_KEY: process.env.RESEND_API_KEY || "",
+  EMAIL_FROM: process.env.EMAIL_FROM || "SignNova <noreply@signnova.com>",
 };
 
 // Validate required environment variables

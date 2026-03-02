@@ -14,3 +14,9 @@ export const emitGroupMessage = (groupId: string, message: any) => {
     io.to(`group:${groupId}`).emit("group:message", message);
   }
 };
+
+export const emitChatMessage = (chatId: string, message: any) => {
+  if (io) {
+    io.to(`chat:${chatId}`).emit("chat:message", message);
+  }
+};

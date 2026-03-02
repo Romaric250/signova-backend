@@ -10,9 +10,12 @@ import {
   getGroupMessages,
   sendMessage,
   sendVoiceMessage,
+  updateMessage,
+  deleteMessage,
   updateGroup,
   deleteGroup,
   leaveGroup,
+  removeMember,
 } from "../controllers/groups.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 import { validateAudioFile } from "../middleware/upload.middleware";
@@ -32,9 +35,12 @@ router.post("/", createGroup);
 router.post("/join", joinGroup);
 router.get("/", getMyGroups);
 router.get("/:id", getGroupById);
+router.delete("/:id/members/:userId", removeMember);
 router.get("/:id/messages", getGroupMessages);
 router.post("/:id/messages", sendMessage);
 router.post("/:id/messages/voice", upload.single("audio"), validateAudioFile, sendVoiceMessage);
+router.patch("/:id/messages/:messageId", updateMessage);
+router.delete("/:id/messages/:messageId", deleteMessage);
 router.patch("/:id", updateGroup);
 router.delete("/:id", deleteGroup);
 router.post("/:id/leave", leaveGroup);
