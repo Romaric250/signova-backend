@@ -291,6 +291,36 @@ export const completeLesson = async (
   }
 };
 
+export const unenrollFromCourse = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) throw new BadRequestError("User not found");
+
+    const { id: courseId } = req.params;
+
+    const enrollment = await prisma.courseEnrollment.findUnique({
+      where: {
+        userId_courseId: { userId: req.user.id, courseId },
+      },
+    });
+    if (!enrollment) throw new NotFoundError("You are not enrolled in this course");
+
+    await prisma.lessonProgress.deleteMany({
+      where: { userId: req.user.id, lesson: { courseId } },
+    });
+    await prisma.courseEnrollment.delete({
+      where: { id: enrollment.id },
+    });
+
+    res.json({ success: true, data: { unenrolled: true } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getLessonProgress = async (
   req: Request,
   res: Response,

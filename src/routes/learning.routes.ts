@@ -5,6 +5,7 @@ import {
   getCourseById,
   getLessonById,
   enrollInCourse,
+  unenrollFromCourse,
   getMyEnrollments,
   getEnrolledCourse,
   completeLesson,
@@ -21,6 +22,7 @@ router.get("/courses/:courseId/lessons/:lessonId", getLessonById);
 router.use(requireAuth);
 router.get("/enrollments", getMyEnrollments);
 router.post("/courses/:id/enroll", enrollInCourse);
+router.delete("/courses/:id/enroll", unenrollFromCourse);
 router.get("/my-courses/:id", getEnrolledCourse);
 router.post("/lessons/:id/complete", completeLesson);
 router.get("/lessons/:id/progress", getLessonProgress);
