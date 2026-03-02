@@ -122,18 +122,21 @@ export const createSign = async (
     const { word, language, category, difficulty, videoUrl, thumbnail, description, relatedSigns } =
       req.body;
 
-    if (!word || !language || !category || !difficulty || !videoUrl || !thumbnail) {
-      throw new BadRequestError("word, language, category, difficulty, videoUrl, thumbnail are required");
+    if (!word || !category || !thumbnail) {
+      throw new BadRequestError("word, category, and image (thumbnail) are required");
     }
+
+    const imageUrl = thumbnail;
+    const videoUrlFinal = videoUrl || imageUrl;
 
     const sign = await prisma.sign.create({
       data: {
         word,
-        language,
+        language: language || "ASL",
         category,
-        difficulty,
-        videoUrl,
-        thumbnail,
+        difficulty: difficulty || "beginner",
+        videoUrl: videoUrlFinal,
+        thumbnail: imageUrl,
         description: description || "",
         relatedSigns: relatedSigns || [],
       },
@@ -300,7 +303,7 @@ export const createLesson = async (
 ) => {
   try {
     const { courseId } = req.params;
-    const { title, content, videoUrl, order } = req.body;
+    const { title, content, videoUrl, imageUrl, order, quizContent } = req.body;
 
     if (!title) throw new BadRequestError("title is required");
 
@@ -313,7 +316,9 @@ export const createLesson = async (
         title,
         content: content || null,
         videoUrl: videoUrl || null,
+        imageUrl: imageUrl || null,
         order: order ?? 0,
+        quizContent: quizContent || null,
       },
     });
 
@@ -333,7 +338,7 @@ export const updateLesson = async (
 ) => {
   try {
     const { id: lessonId } = req.params;
-    const { title, content, videoUrl, order } = req.body;
+    const { title, content, videoUrl, imageUrl, order, quizContent } = req.body;
 
     const lesson = await prisma.lesson.update({
       where: { id: lessonId },
@@ -341,7 +346,9 @@ export const updateLesson = async (
         ...(title != null && { title }),
         ...(content != null && { content }),
         ...(videoUrl != null && { videoUrl }),
+        ...(imageUrl != null && { imageUrl }),
         ...(order != null && { order }),
+        ...(quizContent != null && { quizContent }),
       },
     });
 

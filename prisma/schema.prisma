@@ -36,6 +36,8 @@ model User {
   chatParticipants ChatParticipant[]
   chatMessages ChatMessage[]
   feedbacks Feedback[]
+  courseEnrollments CourseEnrollment[]
+  lessonProgresses  LessonProgress[]
   
   // App-specific fields
   preferences   Json?     // {language: 'ASL', avatarSpeed: 1.0, theme: 'light'}
@@ -245,8 +247,10 @@ model Course {
   isPublished  Boolean  @default(false)
   
   lessons      Lesson[]
+  enrollments  CourseEnrollment[]
   
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime?
   
   @@index([isPublished, order])
 }
@@ -259,11 +263,47 @@ model Lesson {
   title     String
   content   String?
   videoUrl  String?
+  imageUrl  String?   // Optional lesson image
   order     Int      @default(0)
+  quizContent Json?   // MCQ: { questions: [{ id, question: { text?, image? }, options: [{ id, text?, image?, isCorrect }] }] }
   
-  createdAt DateTime @default(now())
+  progress  LessonProgress[]
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
   
   @@index([courseId, order])
+}
+
+model CourseEnrollment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String   @db.ObjectId
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  enrolledAt DateTime @default(now())
+  completedAt DateTime?
+  
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model LessonProgress {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId    String   @db.ObjectId
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  
+  completedAt DateTime?
+  quizScore   Float?   // 0-100
+  quizPassed  Boolean? // true if score >= 50
+  
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
 }
 
 // Better Auth required models
