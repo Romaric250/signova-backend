@@ -3,11 +3,17 @@ import cron from "node-cron";
 import { env } from "../config/env";
 import logger from "../utils/logger";
 
+function getHealthUrl(): string {
+  const base = env.SERVER_URL.replace(/\/$/, "");
+  return base.endsWith("/api") ? `${base}/health` : `${base}/api/health`;
+}
+
 export function startKeepAliveCron() {
+  const healthUrl = getHealthUrl();
   // Run every 10 minutes
   cron.schedule("*/10 * * * *", async () => {
     try {
-      const res = await fetch(`${env.SERVER_URL}/health`);
+      const res = await fetch(healthUrl);
       if (res.ok) {
         logger.info(
           `[Keep-Alive] Health check OK at ${new Date().toISOString()}`
@@ -20,5 +26,5 @@ export function startKeepAliveCron() {
     }
   });
 
-  logger.info("Keep-alive cron started (every 10 minutes)");
+  logger.info(`Keep-alive cron started (every 10 min) → ${healthUrl}`);
 }

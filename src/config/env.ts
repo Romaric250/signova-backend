@@ -24,7 +24,8 @@ export const env = {
   FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",
 
   // Keep-alive cron (pings health endpoint to prevent Render hibernation)
-  SERVER_URL: process.env.SERVER_URL || "https://signova-backend.onrender.com/api",
+  // Use base URL (e.g. https://your-app.onrender.com/) or include /api
+  SERVER_URL: process.env.SERVER_URL || "https://signova-v1-backend.onrender.com",
 
   // Resend (email)
   RESEND_API_KEY: process.env.RESEND_API_KEY || "",
