@@ -1,9 +1,9 @@
 // src/server.ts
 import http from "http";
+import cron from "node-cron";
 import { createApp } from "./app";
 import { initializeSocket } from "./websocket/socket";
 import { setIO } from "./websocket/emitter";
-import { startKeepAliveCron } from "./cron/keepAlive";
 import { env } from "./config/env";
 import logger from "./utils/logger";
 import { prisma } from "./config/database";
@@ -14,10 +14,26 @@ const httpServer = http.createServer(app);
 const io = initializeSocket(httpServer);
 setIO(io);
 
+const startKeepAliveCron = () => {
+  const baseUrl = env.SERVER_URL || `http://localhost:${env.PORT}`;
+  const healthUrl = baseUrl.includes("/api")
+    ? `${baseUrl.replace(/\/$/, "")}/health`
+    : `${baseUrl.replace(/\/$/, "")}/api/health`;
+  cron.schedule("*/10 * * * *", async () => {
+    try {
+      const res = await fetch(healthUrl);
+      logger.info(`Keep-alive ping: ${res.status}`);
+    } catch (err) {
+      logger.warn("Keep-alive ping failed:", err);
+    }
+  });
+  logger.info(`Keep-alive cron: pinging ${healthUrl} every 10 minutes`);
+};
+
 // Graceful shutdown
 const shutdown = async () => {
   logger.info("Shutting down server...");
-  
+
   httpServer.close(() => {
     logger.info("HTTP server closed");
   });
@@ -28,7 +44,7 @@ const shutdown = async () => {
 
   await prisma.$disconnect();
   logger.info("Database disconnected");
-  
+
   process.exit(0);
 };
 
