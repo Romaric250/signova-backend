@@ -64,6 +64,7 @@ export const signup = async (
           avatar: result.user.image || undefined,
           isAdmin: false,
           emailVerified: false,
+          subscriptionPlan: "free",
           learningStreak: 0,
           signsLearned: 0,
           practiceTime: 0,
@@ -117,7 +118,7 @@ export const login = async (
 
     const dbUser = await prisma.user.findUnique({
       where: { id: result.user.id },
-      select: { isAdmin: true, emailVerified: true },
+      select: { isAdmin: true, emailVerified: true, subscriptionPlan: true },
     });
 
     // Return format expected by mobile app: { data: {...}, success: true }
@@ -132,6 +133,7 @@ export const login = async (
           avatar: result.user.image || undefined,
           isAdmin: dbUser?.isAdmin ?? false,
           emailVerified: dbUser?.emailVerified ?? false,
+          subscriptionPlan: dbUser?.subscriptionPlan ?? "free",
           learningStreak: 0, // Will be fetched from progress API
           signsLearned: 0, // Will be fetched from progress API
           practiceTime: 0, // Will be fetched from progress API
@@ -234,10 +236,10 @@ export const getSession = async (
 
     logger.info(`Session retrieved for user: ${session.user.email}`);
 
-    // Fetch isAdmin and emailVerified from DB (Better Auth user may not include it)
+    // Fetch isAdmin, emailVerified, subscriptionPlan from DB (Better Auth user may not include it)
     const dbUser = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { isAdmin: true, emailVerified: true },
+      select: { isAdmin: true, emailVerified: true, subscriptionPlan: true },
     });
 
     res.json({
@@ -250,6 +252,7 @@ export const getSession = async (
           avatar: session.user.image || undefined,
           isAdmin: dbUser?.isAdmin ?? false,
           emailVerified: dbUser?.emailVerified ?? false,
+          subscriptionPlan: dbUser?.subscriptionPlan ?? "free",
           learningStreak: 0,
           signsLearned: 0,
           practiceTime: 0,

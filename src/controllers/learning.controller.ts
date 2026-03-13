@@ -3,14 +3,24 @@ import { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/database";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../utils/errors";
 
+function isAshesiEmail(email: string): boolean {
+  return email?.toLowerCase().endsWith("@ashesi.edu.gh") ?? false;
+}
+
 export const getCourses = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
+    const userEmail = req.user?.email;
+    const canSeeAshesi = userEmail ? isAshesiEmail(userEmail) : false;
+
     const courses = await prisma.course.findMany({
-      where: { isPublished: true },
+      where: {
+        isPublished: true,
+        ...(canSeeAshesi ? {} : { ashesiOnly: false }),
+      },
       include: { lessons: { orderBy: { order: "asc" } } },
       orderBy: { order: "asc" },
     });
@@ -31,6 +41,8 @@ export const getCourseById = async (
 ) => {
   try {
     const { id } = req.params;
+    const userEmail = req.user?.email;
+    const canSeeAshesi = userEmail ? isAshesiEmail(userEmail) : false;
 
     const course = await prisma.course.findFirst({
       where: { id, isPublished: true },
@@ -40,6 +52,7 @@ export const getCourseById = async (
     });
 
     if (!course) throw new NotFoundError("Course not found");
+    if (course.ashesiOnly && !canSeeAshesi) throw new NotFoundError("Course not found");
 
     res.json({
       success: true,

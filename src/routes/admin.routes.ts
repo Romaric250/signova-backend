@@ -18,6 +18,12 @@ import {
   deleteLesson,
   getAllFeedback,
 } from "../controllers/admin.controller";
+import {
+  getPlansAdmin,
+  createPlan,
+  updatePlan,
+  deletePlan,
+} from "../controllers/plans.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 import { requireAdmin } from "../middleware/admin.middleware";
 
@@ -44,5 +50,10 @@ router.delete("/courses/:id", deleteCourse);
 router.post("/courses/:courseId/lessons", createLesson);
 router.patch("/courses/:courseId/lessons/:id", updateLesson);
 router.delete("/courses/:courseId/lessons/:id", deleteLesson);
+
+router.get("/plans", getPlansAdmin);
+router.post("/plans", createPlan);
+router.patch("/plans/:id", updatePlan);
+router.delete("/plans/:id", deletePlan);
 
 export default router;

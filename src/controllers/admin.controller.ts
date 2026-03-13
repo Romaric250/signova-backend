@@ -67,13 +67,18 @@ export const updateUserSubscription = async (
     const { id } = req.params;
     const { subscriptionPlan } = req.body;
 
-    if (!subscriptionPlan || !["free", "premium"].includes(subscriptionPlan)) {
-      throw new BadRequestError("subscriptionPlan must be 'free' or 'premium'");
+    const slug = String(subscriptionPlan || "").toLowerCase().trim();
+    if (!slug) {
+      throw new BadRequestError("subscriptionPlan is required");
+    }
+    const planExists = await prisma.plan.findUnique({ where: { slug } });
+    if (!planExists) {
+      throw new BadRequestError("Invalid plan slug. Plan must exist in plans table.");
     }
 
     const user = await prisma.user.update({
       where: { id },
-      data: { subscriptionPlan },
+      data: { subscriptionPlan: slug },
     });
 
     res.json({
@@ -236,6 +241,7 @@ export const createCourse = async (
         description: description || null,
         thumbnailUrl: thumbnailUrl || null,
         order: order ?? 0,
+        ashesiOnly: req.body.ashesiOnly === true,
       },
     });
 
@@ -255,7 +261,7 @@ export const updateCourse = async (
 ) => {
   try {
     const { id } = req.params;
-    const { title, description, thumbnailUrl, order, isPublished } = req.body;
+    const { title, description, thumbnailUrl, order, isPublished, ashesiOnly } = req.body;
 
     const course = await prisma.course.update({
       where: { id },
@@ -265,6 +271,7 @@ export const updateCourse = async (
         ...(thumbnailUrl != null && { thumbnailUrl }),
         ...(order != null && { order }),
         ...(typeof isPublished === "boolean" && { isPublished }),
+        ...(typeof ashesiOnly === "boolean" && { ashesiOnly }),
       },
     });
 
@@ -303,12 +310,16 @@ export const createLesson = async (
 ) => {
   try {
     const { courseId } = req.params;
-    const { title, content, videoUrl, imageUrl, order, quizContent } = req.body;
+    const { title, content, videoUrl, imageUrl, links, order, quizContent } = req.body;
 
     if (!title) throw new BadRequestError("title is required");
 
     const course = await prisma.course.findUnique({ where: { id: courseId } });
     if (!course) throw new NotFoundError("Course not found");
+
+    const linksData = Array.isArray(links) && links.length > 0
+      ? links.filter((l: unknown) => l && typeof l === "object" && "url" in l && typeof (l as { url: string }).url === "string")
+      : null;
 
     const lesson = await prisma.lesson.create({
       data: {
@@ -317,6 +328,7 @@ export const createLesson = async (
         content: content || null,
         videoUrl: videoUrl || null,
         imageUrl: imageUrl || null,
+        links: linksData,
         order: order ?? 0,
         quizContent: quizContent || null,
       },
@@ -338,7 +350,13 @@ export const updateLesson = async (
 ) => {
   try {
     const { id: lessonId } = req.params;
-    const { title, content, videoUrl, imageUrl, order, quizContent } = req.body;
+    const { title, content, videoUrl, imageUrl, links, order, quizContent } = req.body;
+
+    const linksData = Array.isArray(links)
+      ? links.length > 0
+        ? links.filter((l: unknown) => l && typeof l === "object" && "url" in l && typeof (l as { url: string }).url === "string")
+        : []
+      : undefined;
 
     const lesson = await prisma.lesson.update({
       where: { id: lessonId },
@@ -347,6 +365,7 @@ export const updateLesson = async (
         ...(content != null && { content }),
         ...(videoUrl != null && { videoUrl }),
         ...(imageUrl != null && { imageUrl }),
+        ...(links !== undefined && { links: linksData }),
         ...(order != null && { order }),
         ...(quizContent != null && { quizContent }),
       },

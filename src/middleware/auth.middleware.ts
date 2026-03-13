@@ -18,6 +18,17 @@ declare global {
   }
 }
 
+function setUserFromSession(req: Request, session: { user: { id: string; email: string; name: string; image?: string | null } } | null) {
+  if (session?.user) {
+    req.user = {
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      avatar: session.user.image || undefined,
+    };
+  }
+}
+
 export const requireAuth = async (
   req: Request,
   res: Response,
@@ -30,16 +41,25 @@ export const requireAuth = async (
       throw new UnauthorizedError("Unauthorized");
     }
 
-    req.user = {
-      id: session.user.id,
-      email: session.user.email,
-      name: session.user.name,
-      avatar: session.user.image || undefined,
-    };
-
+    setUserFromSession(req, session);
     next();
   } catch (error) {
     next(error);
+  }
+};
+
+/** Attaches user to req if logged in; does not throw */
+export const optionalAuth = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const session = await auth.api.getSession({ headers: req.headers });
+    setUserFromSession(req, session);
+    next();
+  } catch {
+    next();
   }
 };
 

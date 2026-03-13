@@ -238,6 +238,17 @@ model Feedback {
   @@index([createdAt])
 }
 
+model Plan {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String   // e.g. "Free", "Basic", "Premium"
+  slug       String   @unique // e.g. "free", "basic", "premium"
+  priceCedis Float    @default(0) // 0 for free
+  features   Json?    // Array of feature strings
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
 model Course {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   title        String
@@ -245,6 +256,7 @@ model Course {
   thumbnailUrl String?
   order        Int      @default(0)
   isPublished  Boolean  @default(false)
+  ashesiOnly   Boolean  @default(false)  // Only visible to @ashesi.edu.gh emails
   
   lessons      Lesson[]
   enrollments  CourseEnrollment[]
@@ -264,6 +276,7 @@ model Lesson {
   content   String?
   videoUrl  String?
   imageUrl  String?   // Optional lesson image
+  links     Json?    // [{ label: string, url: string }]
   order     Int      @default(0)
   quizContent Json?   // MCQ: { questions: [{ id, question: { text?, image? }, options: [{ id, text?, image?, isCorrect }] }] }
   

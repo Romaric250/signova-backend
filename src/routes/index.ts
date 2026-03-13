@@ -13,6 +13,7 @@ import adminRoutes from "./admin.routes";
 import progressRoutes from "./progress.routes";
 import feedbackRoutes from "./feedback.routes";
 import uploadRoutes from "./upload.routes";
+import plansRoutes from "./plans.routes";
 
 const router = Router();
 
@@ -29,6 +30,7 @@ router.use("/admin", adminRoutes);
 router.use("/progress", progressRoutes);
 router.use("/feedback", feedbackRoutes);
 router.use("/upload", uploadRoutes);
+router.use("/plans", plansRoutes);
 
 // Health check endpoint
 router.get("/health", (req, res) => {

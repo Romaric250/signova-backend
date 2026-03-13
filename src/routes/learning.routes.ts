@@ -11,12 +11,12 @@ import {
   completeLesson,
   getLessonProgress,
 } from "../controllers/learning.controller";
-import { requireAuth } from "../middleware/auth.middleware";
+import { requireAuth, optionalAuth } from "../middleware/auth.middleware";
 
 const router = Router();
 
-router.get("/courses", getCourses);
-router.get("/courses/:id", getCourseById);
+router.get("/courses", optionalAuth, getCourses);
+router.get("/courses/:id", optionalAuth, getCourseById);
 router.get("/courses/:courseId/lessons/:lessonId", getLessonById);
 
 router.use(requireAuth);
