@@ -27,9 +27,17 @@ export const getProgress = async (
       });
     }
 
+    // Signs Learned = count of dictionary favorites (liked signs)
+    const favoritesCount = await prisma.favorite.count({
+      where: { userId: req.user.id },
+    });
+
     res.json({
       success: true,
-      data: progress,
+      data: {
+        ...progress,
+        signsLearned: favoritesCount,
+      },
     });
   } catch (error) {
     next(error);

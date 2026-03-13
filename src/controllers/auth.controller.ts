@@ -121,6 +121,25 @@ export const login = async (
       select: { isAdmin: true, emailVerified: true, subscriptionPlan: true },
     });
 
+    // If email is not verified, send OTP so user can verify (same as signup flow)
+    if (dbUser && !dbUser.emailVerified) {
+      const otp = generateOTP();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      await prisma.emailVerificationOtp.deleteMany({
+        where: { userId: result.user.id },
+      });
+      await prisma.emailVerificationOtp.create({
+        data: {
+          userId: result.user.id,
+          email: result.user.email,
+          code: otp,
+          expiresAt,
+        },
+      });
+      await sendOTPEmail(result.user.email, otp);
+      logger.info(`Verification OTP sent on login to: ${result.user.email}`);
+    }
+
     // Return format expected by mobile app: { data: {...}, success: true }
     res.json({
       success: true,

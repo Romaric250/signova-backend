@@ -280,6 +280,30 @@ export const completeLesson = async (
       },
     });
 
+    // Add practice time when lesson is completed (5 min per lesson)
+    if (completedAt) {
+      const userProgress = await prisma.progress.findUnique({
+        where: { userId: req.user.id },
+      });
+      if (userProgress) {
+        await prisma.progress.update({
+          where: { userId: req.user.id },
+          data: {
+            practiceTime: userProgress.practiceTime + 5,
+            lastActive: new Date(),
+          },
+        });
+      } else {
+        await prisma.progress.create({
+          data: {
+            userId: req.user.id,
+            practiceTime: 5,
+            lastActive: new Date(),
+          },
+        });
+      }
+    }
+
     const allLessons = await prisma.lesson.findMany({
       where: { courseId: lesson.courseId },
       select: { id: true },
