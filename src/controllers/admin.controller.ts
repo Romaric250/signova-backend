@@ -399,6 +399,80 @@ export const deleteLesson = async (
   }
 };
 
+export const reorderLessons = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { courseId } = req.params;
+    const { lessonIds } = req.body as { lessonIds: string[] };
+
+    if (!Array.isArray(lessonIds) || lessonIds.length === 0) {
+      throw new BadRequestError("lessonIds array is required");
+    }
+
+    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    if (!course) throw new NotFoundError("Course not found");
+
+    await Promise.all(
+      lessonIds.map((lessonId, index) =>
+        prisma.lesson.updateMany({
+          where: { id: lessonId, courseId },
+          data: { order: index },
+        })
+      )
+    );
+
+    const lessons = await prisma.lesson.findMany({
+      where: { courseId },
+      orderBy: { order: "asc" },
+    });
+
+    res.json({
+      success: true,
+      data: lessons,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getCourseEnrollments = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id: courseId } = req.params;
+
+    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    if (!course) throw new NotFoundError("Course not found");
+
+    const enrollments = await prisma.courseEnrollment.findMany({
+      where: { courseId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
+      orderBy: { enrolledAt: "desc" },
+    });
+
+    res.json({
+      success: true,
+      data: enrollments,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Feedback - Admin list all
 export const getAllFeedback = async (
   req: Request,
@@ -453,6 +527,7 @@ export const getAdminStats = async (
       premiumCount,
       signsCount,
       coursesCount,
+      enrollmentsCount,
       feedbackCount,
       transcriptionsCount,
       groupsCount,
@@ -464,6 +539,7 @@ export const getAdminStats = async (
       prisma.user.count({ where: { subscriptionPlan: "premium" } }),
       prisma.sign.count(),
       prisma.course.count(),
+      prisma.courseEnrollment.count(),
       prisma.feedback.count(),
       prisma.transcript.count(),
       prisma.transcriptionGroup.count(),
@@ -481,6 +557,7 @@ export const getAdminStats = async (
         premiumCount,
         signsCount,
         coursesCount,
+        enrollmentsCount,
         feedbackCount,
         transcriptionsCount,
         groupsCount,
@@ -507,22 +584,42 @@ export const getAdminChartData = async (
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
 
-    const users = await prisma.user.findMany({
-      where: { createdAt: { gte: startDate } },
-      select: { createdAt: true },
-    });
+    const [users, transcripts, chatMessages, groupMessages, groups, notes] = await Promise.all([
+      prisma.user.findMany({
+        where: { createdAt: { gte: startDate } },
+        select: { createdAt: true },
+      }),
+      prisma.transcript.findMany({
+        where: { createdAt: { gte: startDate } },
+        select: { createdAt: true },
+      }),
+      prisma.chatMessage.findMany({
+        where: { createdAt: { gte: startDate } },
+        select: { createdAt: true },
+      }),
+      prisma.groupMessage.findMany({
+        where: { createdAt: { gte: startDate } },
+        select: { createdAt: true },
+      }),
+      prisma.transcriptionGroup.findMany({
+        where: { createdAt: { gte: startDate } },
+        select: { createdAt: true },
+      }),
+      prisma.note.findMany({
+        where: { createdAt: { gte: startDate } },
+        select: { createdAt: true },
+      }),
+    ]);
 
-    const transcripts = await prisma.transcript.findMany({
-      where: { createdAt: { gte: startDate } },
-      select: { createdAt: true },
-    });
-
-    const dateCounts: Record<string, { users: number; transcriptions: number }> = {};
+    const dateCounts: Record<
+      string,
+      { users: number; transcriptions: number; messages: number; groups: number; notes: number }
+    > = {};
     for (let i = 0; i < days; i++) {
       const d = new Date(startDate);
       d.setDate(d.getDate() + i);
       const key = d.toISOString().split("T")[0];
-      dateCounts[key] = { users: 0, transcriptions: 0 };
+      dateCounts[key] = { users: 0, transcriptions: 0, messages: 0, groups: 0, notes: 0 };
     }
 
     users.forEach((u) => {
@@ -533,10 +630,29 @@ export const getAdminChartData = async (
       const key = new Date(t.createdAt).toISOString().split("T")[0];
       if (dateCounts[key]) dateCounts[key].transcriptions++;
     });
+    chatMessages.forEach((m) => {
+      const key = new Date(m.createdAt).toISOString().split("T")[0];
+      if (dateCounts[key]) dateCounts[key].messages++;
+    });
+    groupMessages.forEach((m) => {
+      const key = new Date(m.createdAt).toISOString().split("T")[0];
+      if (dateCounts[key]) dateCounts[key].messages++;
+    });
+    groups.forEach((g) => {
+      const key = new Date(g.createdAt).toISOString().split("T")[0];
+      if (dateCounts[key]) dateCounts[key].groups++;
+    });
+    notes.forEach((n) => {
+      const key = new Date(n.createdAt).toISOString().split("T")[0];
+      if (dateCounts[key]) dateCounts[key].notes++;
+    });
 
     const labels = Object.keys(dateCounts).sort();
     const usersData = labels.map((l) => dateCounts[l].users);
     const transcriptionsData = labels.map((l) => dateCounts[l].transcriptions);
+    const messagesData = labels.map((l) => dateCounts[l].messages);
+    const groupsData = labels.map((l) => dateCounts[l].groups);
+    const notesData = labels.map((l) => dateCounts[l].notes);
 
     res.json({
       success: true,
@@ -544,6 +660,9 @@ export const getAdminChartData = async (
         labels,
         usersData,
         transcriptionsData,
+        messagesData,
+        groupsData,
+        notesData,
       },
     });
   } catch (error) {

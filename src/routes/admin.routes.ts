@@ -16,6 +16,8 @@ import {
   createLesson,
   updateLesson,
   deleteLesson,
+  reorderLessons,
+  getCourseEnrollments,
   getAllFeedback,
 } from "../controllers/admin.controller";
 import {
@@ -48,8 +50,10 @@ router.post("/courses", createCourse);
 router.patch("/courses/:id", updateCourse);
 router.delete("/courses/:id", deleteCourse);
 router.post("/courses/:courseId/lessons", createLesson);
+router.patch("/courses/:courseId/lessons/reorder", reorderLessons);
 router.patch("/courses/:courseId/lessons/:id", updateLesson);
 router.delete("/courses/:courseId/lessons/:id", deleteLesson);
+router.get("/courses/:id/enrollments", getCourseEnrollments);
 
 router.get("/plans", getPlansAdmin);
 router.post("/plans", createPlan);
