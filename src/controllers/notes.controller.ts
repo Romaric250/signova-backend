@@ -14,12 +14,14 @@ export const createNote = async (
   try {
     if (!req.user) throw new BadRequestError("User not found");
 
-    const { title, content, sourceType, processAs } = req.body;
+    const { title, content, sourceType, processAs: processAsBody } = req.body;
 
     if (!title || typeof title !== "string") {
       throw new BadRequestError("Title is required");
     }
 
+    const processAs =
+      typeof processAsBody === "string" ? processAsBody.trim().toLowerCase() : "raw";
     const source = sourceType === "recorded" ? "recorded" : "typed";
     const processMode = processAs === "rearranged";
     let finalContent = content || "";
@@ -66,7 +68,10 @@ export const createNoteFromRecording = async (
     if (!req.user) throw new BadRequestError("User not found");
     if (!req.file) throw new BadRequestError("No audio file provided");
 
-    const { title, processAs } = req.body;
+    const processAsRaw = (req.body as { title?: string; processAs?: string })?.processAs;
+    const processAs =
+      typeof processAsRaw === "string" ? processAsRaw.trim().toLowerCase() : "raw";
+    const title = (req.body as { title?: string })?.title;
 
     if (!title || typeof title !== "string") {
       throw new BadRequestError("Title is required");
@@ -177,7 +182,10 @@ export const addRecordingToNote = async (
     if (!req.file) throw new BadRequestError("No audio file provided");
 
     const { id } = req.params;
-    const { processAs } = req.body;
+    // Multer may expose fields as strings; normalize
+    const processAsRaw = (req.body as { processAs?: string })?.processAs;
+    const processAs =
+      typeof processAsRaw === "string" ? processAsRaw.trim().toLowerCase() : "raw";
 
     const existing = await prisma.note.findFirst({
       where: { id, userId: req.user.id },
@@ -216,6 +224,53 @@ export const addRecordingToNote = async (
     });
 
     logger.info(`Recording added to note ${id} by user ${req.user.id}`);
+
+    res.json({
+      success: true,
+      data: note,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** AI-improve current note text (for typed or pasted content, or to re-run on transcript) */
+export const rewriteNote = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) throw new BadRequestError("User not found");
+
+    const { id } = req.params;
+    const useRaw = req.body?.useRaw === true;
+
+    const existing = await prisma.note.findFirst({
+      where: { id, userId: req.user.id },
+    });
+
+    if (!existing) throw new NotFoundError("Note not found");
+
+    const source =
+      useRaw && existing.rawContent?.trim()
+        ? existing.rawContent
+        : existing.content?.trim() || "";
+
+    if (!source) {
+      throw new BadRequestError("No text to improve. Add some content first.");
+    }
+
+    const improved = await rearrangeText(source);
+    const note = await prisma.note.update({
+      where: { id },
+      data: {
+        content: improved,
+        processedContent: improved,
+      },
+    });
+
+    logger.info(`Note rewritten: ${id} by user ${req.user.id}`);
 
     res.json({
       success: true,

@@ -21,7 +21,7 @@ export const rearrangeText = async (rawText: string): Promise<string> => {
         {
           role: "system",
           content:
-            "You are a helpful editor. Fix grammar, improve clarity, and ensure the text flows well. Preserve the original meaning and structure. Return only the corrected text, no explanations.",
+            "You are a professional editor. Fix grammar and spelling, improve clarity, and organize the text into clear paragraphs (use blank lines between paragraphs). Preserve the speaker's meaning. For spoken or messy transcripts, turn them into coherent prose. Return only the improved text, no preamble or quotes.",
         },
         {
           role: "user",

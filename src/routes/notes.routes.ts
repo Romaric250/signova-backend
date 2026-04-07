@@ -7,6 +7,7 @@ import {
   addRecordingToNote,
   getNotes,
   getNoteById,
+  rewriteNote,
   updateNote,
   deleteNote,
 } from "../controllers/notes.controller";
@@ -24,6 +25,7 @@ router.use(requireAuth);
 router.post("/", createNote);
 router.post("/from-recording", upload.single("audio"), validateAudioFile, createNoteFromRecording);
 router.get("/", getNotes);
+router.post("/:id/rewrite", rewriteNote);
 router.get("/:id", getNoteById);
 router.post("/:id/from-recording", upload.single("audio"), validateAudioFile, addRecordingToNote);
 router.patch("/:id", updateNote);
